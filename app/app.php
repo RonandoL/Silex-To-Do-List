@@ -2,46 +2,33 @@
     require_once __DIR__."/../vendor/autoload.php";
     require_once __DIR__."/../src/Task.php";
 
-    // To access the users' cookies, we use a built-in PHP variable called $_SESSION.
-    session_start();
-    if (empty($_SESSION['list_of_tasks'])) {
-        $_SESSION['list_of_tasks'] = array();
-    }  // $_SESSION is a superglobal variable like $_GET, which means we can access it from anywhere in our code. We’re going to store an array of all our Tasks inside of $_SESSION as a value at the key 'list_of_tasks'.
-
     $app = new Silex\Application();
 
-    $app->get("/", function() {
+    // new
+    $server = 'mysql:host=localhost;dbname=to_do';
+    $username = 'root';
+    $password = 'root';
+    $DB =  new PDO($server, $username, $password); //To set up a connection to our database, we run new PDO, and pass in the information about the server's host, the name of the database we'll use, and the username and password to log in to the database.
 
-        // calling the getAll() static method on the class itself.
-        foreach (Task::getAll() as $task) {
-            $output = $output . "<p>" . $task->getDescription() . "</p>";
-        }
+    $app->register(new Silex\Provider\TwigServiceProvider(), array(
+        'twig.path' => __DIR__.'/../views'
+    ));
 
-        // Add a FORM to create new tasks when we press the submit button. This is where HTTP POST requests come in. Loop through tasks stored in the array. Then displays form when new task is submitted. We are creating a task.
-        $output = $output . "
-            <form action='/tasks' method='post'>
-                <label for='description'>Task Description</label>
-                <input id='description' name='description' type='text'>
-
-                <button type='submit'>Add task</button>
-            </form>
-        ";
-
-        return $output;
+    $app->get("/", function() use ($app) {
+        return $app['twig']->render('tasks.html.twig', array('tasks' => Task::getAll()));
     });
 
-    $app->post("/tasks", function() {
+    $app->post("/tasks", function() use ($app) {
         $task = new Task($_POST['description']);
-        $task->save();  // we save after instantiating.
-        return "
-            <h1>You created a task!</h1>
-            <p>" . $task->getDescription() . "</p>
-            <p><a href='/'>View your list of things to do.</a></p>
-        ";
-    }); // We a instantiate a new task when the submit button is pressed by getting the user's description out of the superglobal $_POST.
+        $task->save();
+        return $app['twig']->render('create_task.html.twig', array('newtask' => $task));
+    });
+
+    $app->post("/delete_tasks", function() use ($app) {
+        Task::deleteAll();
+        return $app['twig']->render('delete_tasks.html.twig');
+    });
+
 
     return $app;
-
-
-
 ?>
